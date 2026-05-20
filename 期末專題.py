@@ -93,13 +93,95 @@ def chi_ci_lower(alpha,df):
   if df in chi_square_table and alpha/2 in chi_square_table[df]:
     return chi_square_table[df][alpha/2]
 
+def s_p(n_1,n_2,s_1,s_2):
+  return ((n_1-1)*(s_1)**2 + (n_2-1)*(s_2)**2) / (n_1+n_2-2)
+
 def confident_interval():
+  sample = input("請選擇您要進行單樣本(one)還是雙樣本(two)的計算")
   stats = input("請輸入您要計算的是母體平均數(mu)還是母體比例(p)還是變異數(var):")
-  s = float(input("請輸入母體標準差或樣本標準差(s):"))
-  n = float(input("請輸入樣本數:"))
+  s_1 = float(input("請輸入第一母體標準差或樣本標準差:"))
+  n_1 = float(input("請輸入第一樣本數:"))
+  if sample == 'two':
+    s_2 = float(input("請輸入第二母體標準差或樣本標準差:"))
+    n_2 = float(input("請輸入第二樣本數:"))
   alpha = float(input("請輸入信賴水準(alpha):"))
 
   if stats == 'mu':
+    x_bar_1 = float(input("請輸入第一母體(mu)或樣本平均數(x-bar)的值:"))
+    if sample == 'two':
+      x_bar_2 = float(input("請輸入第二母體(mu)或樣本平均數(x-bar)的值:"))
+    d = input("請選擇要使用z計算還是t計算:")
+    if d == 'z':
+      z = float(Z_ci(float(alpha)))
+    elif d == 't':
+      if sample == 'one':
+        t = float(T_ci(float(alpha),int((n_1)-1)))
+      if sample == 'two':
+        t = (T_ci((alpha),int((n_1+n_2-2))))
+        s_p_2 = float(s_p(n_1,n_2,s_1,s_2))
+  elif stats == 'p':
+    p_1 = float(input("請輸入第一母體比例(P)或樣本比例(p)的值:"))
+    if sample == 'two':
+      p_2 = float(input("請輸入第二母體比例(P)或樣本比例(p)的值:"))
+    z = (Z_ci(float(alpha)))
+  elif stats == 'var':
+    chi_upper = float(chi_ci_upper(float(alpha),int((n_1)-1)))
+    chi_lower = float(chi_ci_lower(float(alpha),int((n_1)-1)))
+
+  if stats == 'mu' and d == 'z':
+    if sample == 'one':
+      upper_bound = (x_bar_1) + (z) * (s_1) / (n_1)**0.5
+      lower_bound = (x_bar_1) - (z) * (s_1) / (n_1)**0.5
+      concluded_interval = (lower_bound,upper_bound)
+    elif sample == 'two':
+      upper_bound = (x_bar_1 - x_bar_2) + (z) * ((s_1)**2/n_1 + (s_2)**2/n_2)**0.5
+      lower_bound = (x_bar_1 - x_bar_2) - (z) * ((s_1)**2/n_1 + (s_2)**2/n_2)**0.5
+      concluded_interval = (lower_bound,upper_bound)
+  elif stats == 'mu' and d == 't':
+    if sample == 'one':
+      upper_bound = (x_bar_1) + (t) * (s_1) / (n_1)**0.5
+      lower_bound = (x_bar_1) - (t) * (s_1) / (n_1)**0.5
+      concluded_interval = (lower_bound,upper_bound)
+    elif sample == 'two':
+      upper_bound = (x_bar_1 - x_bar_2) + (t) * (s_p_2*(1/n_1 + 1/n_2))**0.5
+      lower_bound = (x_bar_1 - x_bar_2) - (t) * (s_p_2*(1/n_1 + 1/n_2))**0.5
+      concluded_interval = (lower_bound,upper_bound)
+  elif stats == 'p':
+    if sample == 'one':
+      upper_bound = (p_1) + (z) * (p_1*(1-p_1) / (n_1))**0.5
+      lower_bound = (p_1) - (z) * (p_1*(1-p_1) / (n_1))**0.5
+      concluded_interval  = (lower_bound,upper_bound)
+    elif sample == 'two':
+      upper_bound = (p_1 - p_2) + (z) * (p_1*(1-p_1)/n_1 + p_2*(1-p_2)/n_2)**0.5
+      lower_bound = ((p_1) - (p_2)) - (z) * (p_1*(1-p_1)/n_1 + p_2*(1-p_2)/n_2)**0.5
+      concluded_interval  = (lower_bound,upper_bound)
+  elif stats == 'var':
+    upper_bound = (n_1-1)*(s_1**2) / chi_upper
+    lower_bound = (n_1-1)*(s_1**2) / chi_lower
+    concluded_interval = (lower_bound,upper_bound)
+
+  return concluded_interval
+
+def main():
+  while True:
+    print("=======歡迎使用統計計算機=======")
+    print('如果要進行信賴區間計算，請輸入1，假說檢定請輸入2，離開程式請輸入3。')
+    c = int(input())
+    if c == 1:
+      return confident_interval()
+      break
+    elif c == 2:
+      print(hypothesis())
+      break
+    elif c == 3:
+      print("感謝使用")
+      break
+    else:
+      print("錯誤")
+
+main()
+
+f stats == 'mu':
     x_bar = float(input("請輸入母體(mu)或樣本平均數(x-bar)的值:"))
     d = input("請選擇要使用z計算還是t計算:")
     if d == 'z':
@@ -130,22 +212,3 @@ def confident_interval():
     lower_bound = (n-1)*(s**2) / chi_lower
     concluded_interval = (lower_bound,upper_bound)
   return concluded_interval
-
-def main():
-  while True:
-    print("=======歡迎使用統計計算機=======")
-    print('如果要進行信賴區間計算，請輸入1，假說檢定請輸入2，離開程式請輸入3。')
-    c = int(input())
-    if c == 1:
-      return confident_interval()
-      break
-    elif c == 2:
-      print(hypothesis())
-      break
-    elif c == 3:
-      print("感謝使用")
-      break
-    else:
-      print("錯誤")
-
-main()
