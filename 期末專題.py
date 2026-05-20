@@ -180,35 +180,3 @@ def main():
       print("錯誤")
 
 main()
-
-f stats == 'mu':
-    x_bar = float(input("請輸入母體(mu)或樣本平均數(x-bar)的值:"))
-    d = input("請選擇要使用z計算還是t計算:")
-    if d == 'z':
-      z = float(Z_ci(float(alpha)))
-    elif d == 't':
-      t = float(T_ci(float(alpha),int((n)-1)))
-  elif stats == 'p':
-    p = float(input("請輸入母體比例(P)或樣本比例(p)的值:"))
-    z = float(Z_ci(float(alpha)))
-  elif stats == 'var':
-    chi_upper = float(chi_ci_upper(float(alpha),int((n)-1)))
-    chi_lower = float(chi_ci_lower(float(alpha),int((n)-1)))
-
-  if stats == 'mu' and d == 'z':
-    upper_bound = (x_bar) + (z) * (s) / (n)**0.5
-    lower_bound = (x_bar) - (z) * (s) / (n)**0.5
-    concluded_interval = (lower_bound,upper_bound)
-  elif stats == 'mu' and d == 't':
-    upper_bound = (x_bar) + (t) * (s) / (n)**0.5
-    lower_bound = (x_bar) - (t) * (s) / (n)**0.5
-    concluded_interval = (lower_bound,upper_bound)
-  elif stats == 'p':
-    upper_bound = (p) + (z) * (s) / (n)**0.5
-    lower_bound = (p) - (z) * (s) / (n)**0.5
-    concluded_interval  = (lower_bound,upper_bound)
-  elif stats == 'var':
-    upper_bound = (n-1)*(s**2) / chi_upper
-    lower_bound = (n-1)*(s**2) / chi_lower
-    concluded_interval = (lower_bound,upper_bound)
-  return concluded_interval
