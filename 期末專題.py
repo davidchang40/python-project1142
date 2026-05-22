@@ -7,6 +7,14 @@ Original file is located at
     https://colab.research.google.com/drive/13PrKjA8XXqE9gvMfCmPkM6SKyrE6T6_p
 """
 
+def again():
+  respond = input("是否繼續計算？")
+  if respond == "yes" or "是":
+    return main()
+  elif respond == "no" or "否":
+    return print("感謝使用")
+
+#定義並回復信賴水準下的對應z值
 def Z_ci(alpha):
   if alpha == 0.1:
     return 1.645
@@ -15,6 +23,7 @@ def Z_ci(alpha):
   if alpha == 0.01:
     return 2.575
 
+#T表，用來儲存對應t值
 t_table = {
     1: {0.05: 6.314, 0.025: 12.706, 0.005: 63.657},
     2: {0.05: 2.920, 0.025: 4.303, 0.005: 9.925},
@@ -48,10 +57,12 @@ t_table = {
     30: {0.05: 1.697, 0.025: 2.042, 0.005: 2.457}
 }
 
+#用來查詢並回復T表內的T值
 def T_ci(alpha,df):
-  if df in t_table and alpha in t_table[df]:
+  if df in t_table and (alpha/2) in t_table[df]:
     return t_table[df][alpha/2]
 
+#chi_square凱方表，用來儲存chi-square值
 chi_square_table = {
     1: {0.995: 0.000, 0.975: 0.001, 0.950: 0.004, 0.050: 3.841, 0.025: 5.024, 0.005: 7.879},
     2: {0.995: 0.010, 0.975: 0.051, 0.950: 0.103, 0.050: 5.991, 0.025: 7.378, 0.005: 10.597},
@@ -85,18 +96,23 @@ chi_square_table = {
     30: {0.995: 13.787, 0.975: 16.791, 0.950: 18.493, 0.050: 43.773, 0.025: 46.979, 0.005: 53.672}
 }
 
+#用來查詢並回覆chi-square表內的值(上區間)
 def chi_ci_upper(alpha,df):
   if df in chi_square_table and alpha/2 in chi_square_table[df]:
     return chi_square_table[df][1-alpha/2]
 
+#用來查詢並回覆chi-square表內的值(下區間)
 def chi_ci_lower(alpha,df):
   if df in chi_square_table and alpha/2 in chi_square_table[df]:
     return chi_square_table[df][alpha/2]
 
+#定義雙樣本母體平均數t檢定中的sp平方參數
 def s_p(n_1,n_2,s_1,s_2):
   return ((n_1-1)*(s_1)**2 + (n_2-1)*(s_2)**2) / (n_1+n_2-2)
 
+#信賴區間計算函式
 def confident_interval():
+  #基礎數據輸入
   sample = input("請選擇您要進行單樣本(one)還是雙樣本(two)的計算")
   stats = input("請輸入您要計算的是母體平均數(mu)還是母體比例(p)還是變異數(var):")
   s_1 = float(input("請輸入第一母體標準差或樣本標準差:"))
@@ -106,55 +122,70 @@ def confident_interval():
     n_2 = float(input("請輸入第二樣本數:"))
   alpha = float(input("請輸入信賴水準(alpha):"))
 
+  #根據使用者輸入項目取得對應數據
+  #平均數(mu)
   if stats == 'mu':
     x_bar_1 = float(input("請輸入第一母體(mu)或樣本平均數(x-bar)的值:"))
     if sample == 'two':
       x_bar_2 = float(input("請輸入第二母體(mu)或樣本平均數(x-bar)的值:"))
     d = input("請選擇要使用z計算還是t計算:")
     if d == 'z':
-      z = float(Z_ci(float(alpha)))
+      z = Z_ci(alpha)
     elif d == 't':
       if sample == 'one':
-        t = float(T_ci(float(alpha),int((n_1)-1)))
+        t = T_ci((alpha),int((n_1)-1))
       if sample == 'two':
         t = (T_ci((alpha),int((n_1+n_2-2))))
-        s_p_2 = float(s_p(n_1,n_2,s_1,s_2))
+        s_p_2 = s_p(n_1,n_2,s_1,s_2)
+  #比例(p)
   elif stats == 'p':
     p_1 = float(input("請輸入第一母體比例(P)或樣本比例(p)的值:"))
     if sample == 'two':
       p_2 = float(input("請輸入第二母體比例(P)或樣本比例(p)的值:"))
-    z = (Z_ci(float(alpha)))
+    z = Z_ci(alpha)
+  #變異數(variance)
   elif stats == 'var':
-    chi_upper = float(chi_ci_upper(float(alpha),int((n_1)-1)))
-    chi_lower = float(chi_ci_lower(float(alpha),int((n_1)-1)))
+    chi_upper = chi_ci_upper(alpha,int((n_1)-1))
+    chi_lower = chi_ci_lower(alpha,int((n_1)-1))
 
+  #計算部分
+  #平均數，z計算
   if stats == 'mu' and d == 'z':
+    #單樣本
     if sample == 'one':
       upper_bound = (x_bar_1) + (z) * (s_1) / (n_1)**0.5
       lower_bound = (x_bar_1) - (z) * (s_1) / (n_1)**0.5
       concluded_interval = (lower_bound,upper_bound)
+    #雙樣本
     elif sample == 'two':
       upper_bound = (x_bar_1 - x_bar_2) + (z) * ((s_1)**2/n_1 + (s_2)**2/n_2)**0.5
       lower_bound = (x_bar_1 - x_bar_2) - (z) * ((s_1)**2/n_1 + (s_2)**2/n_2)**0.5
       concluded_interval = (lower_bound,upper_bound)
+  #平均數，t計算
   elif stats == 'mu' and d == 't':
+    #單樣本
     if sample == 'one':
       upper_bound = (x_bar_1) + (t) * (s_1) / (n_1)**0.5
       lower_bound = (x_bar_1) - (t) * (s_1) / (n_1)**0.5
       concluded_interval = (lower_bound,upper_bound)
+    #雙樣本
     elif sample == 'two':
       upper_bound = (x_bar_1 - x_bar_2) + (t) * (s_p_2*(1/n_1 + 1/n_2))**0.5
       lower_bound = (x_bar_1 - x_bar_2) - (t) * (s_p_2*(1/n_1 + 1/n_2))**0.5
       concluded_interval = (lower_bound,upper_bound)
+  #比例
   elif stats == 'p':
+    #單樣本
     if sample == 'one':
       upper_bound = (p_1) + (z) * (p_1*(1-p_1) / (n_1))**0.5
       lower_bound = (p_1) - (z) * (p_1*(1-p_1) / (n_1))**0.5
       concluded_interval  = (lower_bound,upper_bound)
+    #雙樣本
     elif sample == 'two':
       upper_bound = (p_1 - p_2) + (z) * (p_1*(1-p_1)/n_1 + p_2*(1-p_2)/n_2)**0.5
       lower_bound = ((p_1) - (p_2)) - (z) * (p_1*(1-p_1)/n_1 + p_2*(1-p_2)/n_2)**0.5
       concluded_interval  = (lower_bound,upper_bound)
+  #變異數
   elif stats == 'var':
     upper_bound = (n_1-1)*(s_1**2) / chi_upper
     lower_bound = (n_1-1)*(s_1**2) / chi_lower
@@ -162,21 +193,64 @@ def confident_interval():
 
   return concluded_interval
 
+#平均數計算
+def average():
+  number_list = input("請輸入要計算的數據平均值(每個數據請用空格隔開):").split()
+  total = 0
+  for i in number_list:
+    total += float(i)
+  average = total / len(number_list)
+  return average
+#變異數計算
+def variance():
+  target = input("請選擇是計算母體還是樣本變異數")
+  number_list = input("請輸入要計算的數據平均值(每個數據請用空格隔開):").split()
+  total = 0
+  for i in number_list:
+    total += float(i)
+  average = total / len(number_list)
+  variance = 0
+  if target == '母體':
+    for i in number_list:
+      variance += (float(i)-average)**2 / (len(number_list))
+  elif target == '樣本':
+    for i in number_list:
+      variance += (float(i)-average)**2 / (len(number_list) - 1)
+  return variance
+#標準差計算
+def standard_deviation():
+  return variance()**0.5
+
+#主程式
 def main():
   while True:
     print("=======歡迎使用統計計算機=======")
-    print('如果要進行信賴區間計算，請輸入1，假說檢定請輸入2，離開程式請輸入3。')
+    print('如果要進行信賴區間計算，請輸入1，假說檢定請輸入2，平均數請輸入3，變異數請輸入4，標準差請輸入5，離開程式請輸入6。')
     c = int(input())
+    #執行信賴區間計算
     if c == 1:
       return confident_interval()
       break
+    #執行假說檢定計算
     elif c == 2:
       print(hypothesis())
-      break
+    #執行平均數計算
     elif c == 3:
-      print("感謝使用")
+      return average()
       break
+    #執行變異數計算
+    elif c == 4:
+      return variance()
+      break
+    #執行標準差計算
+    elif c == 5:
+      return standard_deviation()
+      break
+    #結束程式
+    elif c == 6:
+      print("感謝使用")
     else:
-      print("錯誤")
+      print("錯誤，請再試一次")
+      continue
 
 main()
