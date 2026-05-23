@@ -14,8 +14,10 @@ n_samples           = None   # int：1 或 2
 tail_type           = None   # str：'left' / 'right' / 'two'
 alpha               = None   # float：0.10 / 0.05 / 0.01
 
-# --- 原始數據暫存 ---
+# ---數據們 ---
 raw_data            = []     # list of list：[[樣本1數據], [樣本2數據]]
+proportion          = []     # list：樣本比例 p̂（雙比例時為 [p̂1, p̂2]）
+p0                  = 0
 
 # --- 處理後統計量（由 calculate_stats 寫入，供 check_hypothesis 使用）---
 mu                  = None   # float：母體平均數 或 假設比例 p0
@@ -26,6 +28,7 @@ n                   = None   # int 或 list：樣本數（雙樣本時為 [n1, n
 # 雙樣本專用
 x_bar2              = None   # float：第二組樣本平均數
 sigma2              = None   # float：第二組標準差
+
 
 
 # ============================================================
@@ -56,6 +59,7 @@ def run_test():
     # """
     global is_proportion, is_population_known, is_paired
     global is_raw_data, n_samples, tail_type, alpha
+    global p0, raw_data, proportion, mu
 
     is_proportion       = (ask("數值/比例？(1=數值 / 2=比例)：",         ["1","2"])    == "2")
     n_samples           = int(ask("樣本數？(1 / 2)：",                   ["1","2"]))
@@ -69,6 +73,14 @@ def run_test():
     tail_type           = {"1": "left", "2": "right", "3": "two"}\
                           [ask("尾數？(1=左尾 / 2=右尾 / 3=雙尾)：",     ["1","2","3"])]
                           
+    if is_proportion:
+        p0 = float(input("輸入假設比例 p₀："))
+        for i in range(n_samples):
+            proportion.append(float(input(f"輸入第 {i+1} 組樣本比例 p̂：")))
+    else:
+        for i in range(n_samples):
+            raw_data.append(list(map(float, input(f"輸入第 {i+1} 組數據（空格分隔）：").split())))
+    
     if is_proportion:
         # --- 比例型（一律為 Z 檢定）---
         if n_samples == 1:
@@ -123,8 +135,13 @@ def calculate_stats_z_one():
 
     回傳：z_stat (float)
     """
-    global x_bar, sigma, n          # 宣告要修改的全域變數
-    if is_raw_data:
+    global x_bar, sigma, n         # 宣告要修改的全域變數
+    
+    if is_proportion:
+        x_bar = proportion[0]          # 取第一組 p̂
+        sigma = np.sqrt(p0 * (1 - p0) / n)  # 比例型 sigma 公式
+        # n 由使用者輸入時已存入全域，不用
+    elif is_raw_data:
         data = raw_data[0]          # 取第一組（單樣本只有一組）
         n     = len(data)
         x_bar = np.mean(data)
@@ -133,9 +150,9 @@ def calculate_stats_z_one():
     else:
         # 使用者直接輸入，全域變數已經有值，不用動
         pass
+    
     z_test=(x_bar-mu)/(sigma/np.sqrt(n))
     return z_test  
-    pass
 
 
 def calculate_stats_z_two():
@@ -156,7 +173,32 @@ def calculate_stats_z_two():
 
     回傳：z_stat (float)
     """
-    pass
+    global x_bar, x_bar2, sigma, sigma2, n          # 宣告要修改的全域變數
+    
+    if is_proportion:
+        x_1 = proportion[0]          # 取第一組 p̂
+        x_2= proportion[1]         # 取第二組 p̂
+        n1 = n[0]
+        n2 = n[1]
+        p_hat = (x_1 * n1 + x_2 * n2) / (n1 + n2)  # 合併比例
+        D = np.sqrt(p_hat * (1 - p_hat) * (1/n1 + 1/n2))  # 比例型標準誤
+        z_stat = (x_1 - x_2 - mu) / D
+        return z_stat
+
+    elif is_raw_data:
+        data1=raw_data[0]
+        data2=raw_data[1]
+        n = [len(data1), len(data2)]   # 統一寫入全域 n
+        sigma=np.std(data1,ddof=0)
+        sigma2=np.std(data2,ddof=0)
+        x_bar=np.mean(data1)
+        x_bar2=np.mean(data2)
+    else:
+        # 使用者直接輸入，全域變數已經有值，不用動
+        pass
+    se=np.sqrt(sigma**2/n[0]+sigma2**2/n[1])
+    z_stat=(x_bar-x_bar2-mu)/se
+    return z_stat
 
 
 def calculate_stats_t_one():
@@ -190,7 +232,7 @@ def calculate_stats_t_one():
 
     t_stat = (x_bar - mu) / (sigma / np.sqrt(n))   # 算出 t 統計量
     return t_stat
-    pass
+
 
 
 def calculate_stats_t_ind():
@@ -211,8 +253,25 @@ def calculate_stats_t_ind():
         t_stat        (float)  ── 計算出的 T 統計量
 
     回傳：(t_stat, df)
+    
     """
-    pass
+    global n, sigma, sigma2, x_bar, x_bar2
+    
+    if is_raw_data:
+        data1=raw_data[0]
+        data2=raw_data[1]
+        n = [len(data1), len(data2)]   # 統一寫入全域 n
+        sigma=np.std(data1,ddof=1)
+        sigma2=np.std(data2,ddof=1)
+        x_bar=np.mean(data1)
+        x_bar2=np.mean(data2)
+    else:
+        # 使用者直接輸入，全域變數已經有值，不用動
+        pass
+    s2p=((n[0]-1)*sigma**2+(n[1]-1)*sigma2**2)/(n[0]+n[1]-2)
+    se = np.sqrt(s2p * (1/n[0] + 1/n[1]))
+    T_stat=(x_bar-x_bar2-mu)/se
+    return T_stat, n[0] + n[1] - 2
 
 
 def calculate_stats_t_pair():
@@ -233,7 +292,17 @@ def calculate_stats_t_pair():
 
     回傳：t_stat (float)
     """
-    pass
+    if is_raw_data:
+        data1=raw_data[0]
+        data2=raw_data[1]
+        n = len(data1)  # 配對樣本數
+        diff = [data1[i] - data2[i] for i in range(n)]
+        x_bar = np.mean(diff)
+    sigma = np.std(diff, ddof=1)  # 差值的樣本標準差
+    t_stat = (x_bar - mu) / (sigma / np.sqrt(n))
+    return t_stat
+    
+
 
 
 # ============================================================
@@ -259,4 +328,60 @@ def check_hypothesis(test_stat):
 
     回傳：無（直接 print 結論）
     """
+    critical_value = 0.0  # 初始化臨界值
+    df = 0  # 初始化自由度
+    conclusion = ""  # 初始化結論文字
+
+    def get_critical_value():
+        if is_proportion or is_population_known:
+            # Z 檢定
+            if tail_type == "left":
+                return stats.norm.ppf(alpha)
+            elif tail_type == "right":
+                return stats.norm.ppf(1 - alpha)
+            else:  # two-tailed
+                return stats.norm.ppf(1 - alpha / 2)
+        else:
+            # T 檢定
+            if tail_type == "left":
+                return stats.t.ppf(alpha, df)
+            elif tail_type == "right":
+                return stats.t.ppf(1 - alpha, df)
+            else:  # two-tailed
+                return stats.t.ppf(1 - alpha / 2, df)
+    if is_proportion or is_population_known:
+        critical_value = get_critical_value()
+        if tail_type == "left":
+            conclusion = "拒絕 H₀" if test_stat < critical_value else "不拒絕 H₀"
+        elif tail_type == "right":
+            conclusion = "拒絕 H₀" if test_stat > critical_value else "不拒絕 H₀"
+        else:  # two-tailed
+            conclusion = "拒絕 H₀" if abs(test_stat) > abs(critical_value) else "不拒絕 H₀"
+    elif isinstance(test_stat, tuple):
+        t_stat, df = test_stat
+        critical_value = get_critical_value()
+        if tail_type == "left":
+            conclusion = "拒絕 H₀" if t_stat < critical_value else "不拒絕 H₀"
+        elif tail_type == "right":
+            conclusion = "拒絕 H₀" if t_stat > critical_value else "不拒絕 H₀"
+        else:  # two-tailed
+            conclusion = "拒絕 H₀" if abs(t_stat) > abs(critical_value) else "不拒絕 H₀"
+    elif is_paired:
+        critical_value = get_critical_value()
+        if tail_type == "left":
+            conclusion = "拒絕 H₀" if test_stat < critical_value else "不拒絕 H₀"
+        elif tail_type == "right":
+            conclusion = "拒絕 H₀" if test_stat > critical_value else "不拒絕 H₀"
+        else:  # two-tailed
+            conclusion = "拒絕 H₀" if abs(test_stat) > abs(critical_value) else "不拒絕 H₀"
+    elif not is_paired:
+        critical_value = get_critical_value()
+        if tail_type == "left":
+            conclusion = "拒絕 H₀" if test_stat < critical_value else "不拒絕 H₀"
+        elif tail_type == "right":
+            conclusion = "拒絕 H₀" if test_stat > critical_value else "不拒絕 H₀"
+        else:  # two-tailed
+            conclusion = "拒絕 H₀" if abs(test_stat) > abs(critical_value) else "不拒絕 H₀"
+    
+    
     pass
