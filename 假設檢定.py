@@ -29,7 +29,8 @@ n                   = None   # int 或 list：樣本數（雙樣本時為 [n1, n
 x_bar2              = None   # float：第二組樣本平均數
 sigma2              = None   # float：第二組標準差
 
-
+#T-test專用
+df=None
 
 # ============================================================
 # 啟動區
@@ -60,6 +61,7 @@ def run_test():
     global is_proportion, is_population_known, is_paired
     global is_raw_data, n_samples, tail_type, alpha
     global p0, raw_data, proportion, mu
+    global x_bar, x_bar2, sigma, sigma2, n
 
     is_proportion       = (ask("數值/比例？(1=數值 / 2=比例)：",         ["1","2"])    == "2")
     n_samples           = int(ask("樣本數？(1 / 2)：",                   ["1","2"]))
@@ -75,12 +77,30 @@ def run_test():
                           
     if is_proportion:
         p0 = float(input("輸入假設比例 p₀："))
-        for i in range(n_samples):
-            proportion.append(float(input(f"輸入第 {i+1} 組樣本比例 p̂：")))
+        if n_samples == 1:
+            n = int(input("輸入樣本數 n："))
+            proportion.append(float(input("輸入樣本比例 p̂：")))
+        else:
+            n = [int(input("輸入第1組樣本數 n₁：")), int(input("輸入第2組樣本數 n₂："))]
+            for i in range(n_samples):
+                proportion.append(float(input(f"輸入第 {i+1} 組樣本比例 p̂：")))
     else:
-        for i in range(n_samples):
-            raw_data.append(list(map(float, input(f"輸入第 {i+1} 組數據（空格分隔）：").split())))
-    
+        mu = float(input("輸入假設的母體平均數 μ₀："))
+        if is_raw_data:
+            for i in range(n_samples):
+                raw_data.append(list(map(float, input(f"輸入第 {i+1} 組數據（空格分隔）：").split(" "))))
+        else:
+            if n_samples == 1:
+                x_bar = float(input("輸入樣本平均數 x̄："))
+                sigma = float(input("輸入標準差 σ："))
+                n     = int(input("輸入樣本數 n："))
+            else:
+                x_bar  = float(input("輸入第1組樣本平均數 x̄₁："))
+                x_bar2 = float(input("輸入第2組樣本平均數 x̄₂："))
+                sigma  = float(input("輸入第1組標準差 σ₁："))
+                sigma2 = float(input("輸入第2組標準差 σ₂："))
+                n      = [int(input("輸入第1組樣本數 n₁：")),
+                        int(input("輸入第2組樣本數 n₂："))]
     if is_proportion:
         # --- 比例型（一律為 Z 檢定）---
         if n_samples == 1:
@@ -119,22 +139,22 @@ def run_test():
 # ============================================================
 
 def calculate_stats_z_one():
-    """
-    單樣本 Z 檢定 / 單比例 Z 檢定 的數據處理 + 統計量計算
+    # """
+    # 單樣本 Z 檢定 / 單比例 Z 檢定 的數據處理 + 統計量計算
 
-    讀取的全域變數：
-        is_raw_data, is_proportion, raw_data, mu,
-        x_bar, sigma, n
+    # 讀取的全域變數：
+    #     is_raw_data, is_proportion, raw_data, mu,
+    #     x_bar, sigma, n
 
-    寫入的全域變數：
-        x_bar, sigma, n
+    # 寫入的全域變數：
+    #     x_bar, sigma, n
 
-    局域變數：
-        data        (list)   ── raw_data[0] 的捷徑
-        z_stat      (float)  ── 計算出的 Z 統計量
+    # 局域變數：
+    #     data        (list)   ── raw_data[0] 的捷徑
+    #     z_stat      (float)  ── 計算出的 Z 統計量
 
-    回傳：z_stat (float)
-    """
+    # 回傳：z_stat (float)
+    # """
     global x_bar, sigma, n         # 宣告要修改的全域變數
     
     if is_proportion:
@@ -156,24 +176,24 @@ def calculate_stats_z_one():
 
 
 def calculate_stats_z_two():
-    """
-    雙樣本 Z 檢定 / 雙比例 Z 檢定 的數據處理 + 統計量計算
+    # """
+    # 雙樣本 Z 檢定 / 雙比例 Z 檢定 的數據處理 + 統計量計算
 
-    讀取的全域變數：
-        is_raw_data, is_proportion, raw_data, mu,
-        x_bar, x_bar2, sigma, sigma2, n
+    # 讀取的全域變數：
+    #     is_raw_data, is_proportion, raw_data, mu,
+    #     x_bar, x_bar2, sigma, sigma2, n
 
-    寫入的全域變數：
-        x_bar, x_bar2, sigma, sigma2, n
+    # 寫入的全域變數：
+    #     x_bar, x_bar2, sigma, sigma2, n
 
-    局域變數：
-        data1, data2  (list)   ── raw_data[0], raw_data[1] 的捷徑
-        se            (float)  ── 標準誤
-        z_stat        (float)  ── 計算出的 Z 統計量
+    # 局域變數：
+    #     data1, data2  (list)   ── raw_data[0], raw_data[1] 的捷徑
+    #     se            (float)  ── 標準誤
+    #     z_stat        (float)  ── 計算出的 Z 統計量
 
-    回傳：z_stat (float)
-    """
-    global x_bar, x_bar2, sigma, sigma2, n          # 宣告要修改的全域變數
+    # 回傳：z_stat (float)
+    # """
+    global x_bar, x_bar2, sigma, sigma2, n         # 宣告要修改的全域變數
     
     if is_proportion:
         x_1 = proportion[0]          # 取第一組 p̂
@@ -202,23 +222,23 @@ def calculate_stats_z_two():
 
 
 def calculate_stats_t_one():
-    """
-    單樣本 T 檢定 的數據處理 + 統計量計算
+    # """
+    # 單樣本 T 檢定 的數據處理 + 統計量計算
 
-    讀取的全域變數：
-        is_raw_data, raw_data, mu,
-        x_bar, sigma, n
+    # 讀取的全域變數：
+    #     is_raw_data, raw_data, mu,
+    #     x_bar, sigma, n
 
-    寫入的全域變數：
-        x_bar, sigma, n
+    # 寫入的全域變數：
+    #     x_bar, sigma, n
 
-    局域變數：
-        data    (list)   ── raw_data[0] 的捷徑
-        t_stat  (float)  ── 計算出的 T 統計量
+    # 局域變數：
+    #     data    (list)   ── raw_data[0] 的捷徑
+    #     t_stat  (float)  ── 計算出的 T 統計量
 
-    回傳：t_stat (float)
-    """
-    global x_bar, sigma, n          # 宣告要修改的全域變數
+    # 回傳：t_stat (float)
+    # """
+    global x_bar, sigma, n, df         # 宣告要修改的全域變數
 
     if is_raw_data:
         data = raw_data[0]          # 取第一組（單樣本只有一組）
@@ -230,32 +250,33 @@ def calculate_stats_t_one():
         # 使用者直接輸入，全域變數已經有值，不用動
         pass
 
+    df = n - 1  # 計算自由度
     t_stat = (x_bar - mu) / (sigma / np.sqrt(n))   # 算出 t 統計量
-    return t_stat
+    return t_stat,df
 
 
 
 def calculate_stats_t_ind():
-    """
-    獨立雙樣本 T 檢定 的數據處理 + 統計量計算
+    # """
+    # 獨立雙樣本 T 檢定 的數據處理 + 統計量計算
 
-    讀取的全域變數：
-        is_raw_data, raw_data,
-        x_bar, x_bar2, sigma, sigma2, n
+    # 讀取的全域變數：
+    #     is_raw_data, raw_data,
+    #     x_bar, x_bar2, sigma, sigma2, n
 
-    寫入的全域變數：
-        x_bar, x_bar2, sigma, sigma2, n
+    # 寫入的全域變數：
+    #     x_bar, x_bar2, sigma, sigma2, n
 
-    局域變數：
-        data1, data2  (list)   ── raw_data[0], raw_data[1] 的捷徑
-        se            (float)  ── 標準誤
-        df            (int)    ── 自由度
-        t_stat        (float)  ── 計算出的 T 統計量
+    # 局域變數：
+    #     data1, data2  (list)   ── raw_data[0], raw_data[1] 的捷徑
+    #     se            (float)  ── 標準誤
+    #     df            (int)    ── 自由度
+    #     t_stat        (float)  ── 計算出的 T 統計量
 
-    回傳：(t_stat, df)
+    # 回傳：(t_stat, df)
     
-    """
-    global n, sigma, sigma2, x_bar, x_bar2
+    # """
+    global n, sigma, sigma2, x_bar, x_bar2, df
     
     if is_raw_data:
         data1=raw_data[0]
@@ -271,36 +292,45 @@ def calculate_stats_t_ind():
     s2p=((n[0]-1)*sigma**2+(n[1]-1)*sigma2**2)/(n[0]+n[1]-2)
     se = np.sqrt(s2p * (1/n[0] + 1/n[1]))
     T_stat=(x_bar-x_bar2-mu)/se
-    return T_stat, n[0] + n[1] - 2
+    df = n[0] + n[1] - 2
+    return T_stat, df
 
 
 def calculate_stats_t_pair():
-    """
-    配對 T 檢定 的數據處理 + 統計量計算
+    # """
+    # 配對 T 檢定 的數據處理 + 統計量計算
 
-    讀取的全域變數：
-        is_raw_data, raw_data,
-        x_bar, sigma, n
+    # 讀取的全域變數：
+    #     is_raw_data, raw_data,
+    #     x_bar, sigma, n
 
-    寫入的全域變數：
-        x_bar, sigma, n
+    # 寫入的全域變數：
+    #     x_bar, sigma, n
 
-    局域變數：
-        data1, data2  (list)   ── raw_data[0], raw_data[1] 的捷徑
-        diff          (list)   ── 每對差值 (data1[i] - data2[i])
-        t_stat        (float)  ── 計算出的 T 統計量
+    # 局域變數：
+    #     data1, data2  (list)   ── raw_data[0], raw_data[1] 的捷徑
+    #     diff          (list)   ── 每對差值 (data1[i] - data2[i])
+    #     t_stat        (float)  ── 計算出的 T 統計量
 
-    回傳：t_stat (float)
-    """
+    # 回傳：t_stat (float)
+    # """
+    global x_bar, sigma, n, df          # 宣告要修改的全域變數
+    
+    
     if is_raw_data:
         data1=raw_data[0]
         data2=raw_data[1]
         n = len(data1)  # 配對樣本數
         diff = [data1[i] - data2[i] for i in range(n)]
         x_bar = np.mean(diff)
-    sigma = np.std(diff, ddof=1)  # 差值的樣本標準差
+        sigma = np.std(diff, ddof=1)  # 差值的樣本標準差
+
+    else:
+        # 使用者直接輸入，全域變數已經有值，不用動
+        pass
     t_stat = (x_bar - mu) / (sigma / np.sqrt(n))
-    return t_stat
+    df = n - 1  # 配對 T 檢定的自由度
+    return t_stat, df
     
 
 
@@ -309,79 +339,59 @@ def calculate_stats_t_pair():
 # 檢定區
 # ============================================================
 
-def check_hypothesis(test_stat):
-    """
-    負責：根據條件查臨界值、與統計量比大小、輸出結論
-
-    參數：
-        test_stat   (float 或 tuple) ── 來自計算函式的統計量
-                                        T獨立雙樣本時為 (t_stat, df)
-
-    讀取的全域變數：
-        is_proportion, is_population_known, is_paired,
-        n_samples, tail_type, alpha
-
-    局域變數：
-        critical_value  (float)  ── 查表得到的臨界值
-        df              (int)    ── 自由度（T檢定用）
-        conclusion      (str)    ── 最終輸出結論文字
-
-    回傳：無（直接 print 結論）
-    """
-    critical_value = 0.0  # 初始化臨界值
-    df = 0  # 初始化自由度
-    conclusion = ""  # 初始化結論文字
-
-    def get_critical_value():
-        if is_proportion or is_population_known:
-            # Z 檢定
-            if tail_type == "left":
-                return stats.norm.ppf(alpha)
-            elif tail_type == "right":
-                return stats.norm.ppf(1 - alpha)
-            else:  # two-tailed
-                return stats.norm.ppf(1 - alpha / 2)
-        else:
-            # T 檢定
-            if tail_type == "left":
-                return stats.t.ppf(alpha, df)
-            elif tail_type == "right":
-                return stats.t.ppf(1 - alpha, df)
-            else:  # two-tailed
-                return stats.t.ppf(1 - alpha / 2, df)
+def get_critical_value():
     if is_proportion or is_population_known:
-        critical_value = get_critical_value()
+        # Z 檢定
         if tail_type == "left":
-            conclusion = "拒絕 H₀" if test_stat < critical_value else "不拒絕 H₀"
+            return stats.norm.ppf(alpha)
         elif tail_type == "right":
-            conclusion = "拒絕 H₀" if test_stat > critical_value else "不拒絕 H₀"
+            return stats.norm.ppf(1 - alpha)
         else:  # two-tailed
-            conclusion = "拒絕 H₀" if abs(test_stat) > abs(critical_value) else "不拒絕 H₀"
-    elif isinstance(test_stat, tuple):
-        t_stat, df = test_stat
-        critical_value = get_critical_value()
+            return stats.norm.ppf(1 - alpha / 2)
+    else:
+        # T 檢定
         if tail_type == "left":
-            conclusion = "拒絕 H₀" if t_stat < critical_value else "不拒絕 H₀"
+            return stats.t.ppf(alpha, df)
         elif tail_type == "right":
-            conclusion = "拒絕 H₀" if t_stat > critical_value else "不拒絕 H₀"
+            return stats.t.ppf(1 - alpha, df)
         else:  # two-tailed
-            conclusion = "拒絕 H₀" if abs(t_stat) > abs(critical_value) else "不拒絕 H₀"
-    elif is_paired:
-        critical_value = get_critical_value()
-        if tail_type == "left":
-            conclusion = "拒絕 H₀" if test_stat < critical_value else "不拒絕 H₀"
-        elif tail_type == "right":
-            conclusion = "拒絕 H₀" if test_stat > critical_value else "不拒絕 H₀"
-        else:  # two-tailed
-            conclusion = "拒絕 H₀" if abs(test_stat) > abs(critical_value) else "不拒絕 H₀"
-    elif not is_paired:
-        critical_value = get_critical_value()
-        if tail_type == "left":
-            conclusion = "拒絕 H₀" if test_stat < critical_value else "不拒絕 H₀"
-        elif tail_type == "right":
-            conclusion = "拒絕 H₀" if test_stat > critical_value else "不拒絕 H₀"
-        else:  # two-tailed
-            conclusion = "拒絕 H₀" if abs(test_stat) > abs(critical_value) else "不拒絕 H₀"
+            return stats.t.ppf(1 - alpha / 2, df)
+
+def check_hypothesis(test_stat):
+    # """
+    # 負責：根據條件查臨界值、與統計量比大小、輸出結論
+
+    # 參數：
+    #     test_stat   (float 或 tuple) ── 來自計算函式的統計量
+    #                                     T獨立雙樣本時為 (t_stat, df)
+
+    # 讀取的全域變數：
+    #     is_proportion, is_population_known, is_paired,
+    #     n_samples, tail_type, alpha
+
+    # 局域變數：
+    #     critical_value  (float)  ── 查表得到的臨界值
+    #     df              (int)    ── 自由度（T檢定用）
+    #     conclusion      (str)    ── 最終輸出結論文字
+
+    # 回傳：無（直接 print 結論）
+    # """
+    critical_value = 0.0  # 初始化臨界值
+    conclusion = ""  # 初始化結論文字
+    stat = test_stat[0] if isinstance(test_stat, tuple) else test_stat  # ← 補這行
     
-    
-    pass
+    critical_value = get_critical_value()
+    if tail_type == "left":
+            conclusion = "拒絕 H₀" if test_stat < critical_value else "不拒絕 H₀"
+    elif tail_type == "right":
+            conclusion = "拒絕 H₀" if test_stat > critical_value else "不拒絕 H₀"
+    else:  # two-tailed
+            conclusion = "拒絕 H₀" if abs(test_stat) > abs(critical_value) else "不拒絕 H₀"
+            
+    print(f"統計量：{stat:.4f}")
+    print(f"臨界值：{critical_value:.4f}")
+    print(raw_data)
+    print(conclusion)
+
+if __name__ == "__main__":
+    run_test()
