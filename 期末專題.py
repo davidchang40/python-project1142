@@ -7,13 +7,6 @@ Original file is located at
     https://colab.research.google.com/drive/13PrKjA8XXqE9gvMfCmPkM6SKyrE6T6_p
 """
 
-def again():
-  respond = input("是否繼續計算？")
-  if respond == "yes" or "是":
-    return main()
-  elif respond == "no" or "否":
-    return print("感謝使用")
-
 #定義並回復信賴水準下的對應z值
 def Z_ci(alpha):
   if alpha == 0.1:
