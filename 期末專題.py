@@ -7,7 +7,7 @@ Original file is located at
     https://colab.research.google.com/drive/13PrKjA8XXqE9gvMfCmPkM6SKyrE6T6_p
 """
 
-#定義並回復信賴水準下的對應z值
+#定義並回覆信賴水準下的對應z值
 def Z_ci(alpha):
   if alpha == 0.1:
     return 1.645
@@ -106,85 +106,85 @@ def s_p(n_1,n_2,s_1,s_2):
 #信賴區間計算函式
 def confident_interval():
   #基礎數據輸入
-  sample = input("請選擇您要進行單樣本(one)還是雙樣本(two)的計算")
-  stats = input("請輸入您要計算的是母體平均數(mu)還是母體比例(p)還是變異數(var):")
+  sample = input("請選擇您要進行單樣本(1)還是雙樣本(2)的計算")
+  stats = input("請輸入您要計算的是母體平均數(1)還是母體比例(2)還是變異數(3):")
   s_1 = float(input("請輸入第一母體標準差或樣本標準差:"))
-  n_1 = float(input("請輸入第一樣本數:"))
-  if sample == 'two':
+  n_1 = float(input("請輸入第一樣本數(如要進行t計算請輸入0到30之內):"))
+  if sample == '2':
     s_2 = float(input("請輸入第二母體標準差或樣本標準差:"))
-    n_2 = float(input("請輸入第二樣本數:"))
-  alpha = float(input("請輸入信賴水準(alpha):"))
+    n_2 = float(input("請輸入第二樣本數(如要進行t計算請輸入0到30之內):"))
+  alpha = float(input("請輸入顯著水準(0.1/0.05/0.01):"))
 
   #根據使用者輸入項目取得對應數據
   #平均數(mu)
-  if stats == 'mu':
+  if stats == '1':
     x_bar_1 = float(input("請輸入第一母體(mu)或樣本平均數(x-bar)的值:"))
-    if sample == 'two':
+    if sample == '2':
       x_bar_2 = float(input("請輸入第二母體(mu)或樣本平均數(x-bar)的值:"))
-    d = input("請選擇要使用z計算還是t計算:")
-    if d == 'z':
+    d = input("請選擇要使用z計算(1)還是t計算(2):")
+    if d == '1' or 'z':
       z = Z_ci(alpha)
-    elif d == 't':
-      if sample == 'one':
+    elif d == '2' or 't':
+      if sample == '1':
         t = T_ci((alpha),int((n_1)-1))
-      if sample == 'two':
+      if sample == '2':
         t = (T_ci((alpha),int((n_1+n_2-2))))
         s_p_2 = s_p(n_1,n_2,s_1,s_2)
   #比例(p)
-  elif stats == 'p':
+  elif stats == '2':
     p_1 = float(input("請輸入第一母體比例(P)或樣本比例(p)的值:"))
-    if sample == 'two':
+    if sample == '2':
       p_2 = float(input("請輸入第二母體比例(P)或樣本比例(p)的值:"))
     z = Z_ci(alpha)
   #變異數(variance)
-  elif stats == 'var':
+  elif stats == '3':
     chi_upper = chi_ci_upper(alpha,int((n_1)-1))
     chi_lower = chi_ci_lower(alpha,int((n_1)-1))
 
   #計算部分
   #平均數，z計算
-  if stats == 'mu' and d == 'z':
+  if stats == '1' and d == '1' or 'z':
     #單樣本
-    if sample == 'one':
+    if sample == '1':
       upper_bound = (x_bar_1) + (z) * (s_1) / (n_1)**0.5
       lower_bound = (x_bar_1) - (z) * (s_1) / (n_1)**0.5
       concluded_interval = (lower_bound,upper_bound)
     #雙樣本
-    elif sample == 'two':
+    elif sample == '2':
       upper_bound = (x_bar_1 - x_bar_2) + (z) * ((s_1)**2/n_1 + (s_2)**2/n_2)**0.5
       lower_bound = (x_bar_1 - x_bar_2) - (z) * ((s_1)**2/n_1 + (s_2)**2/n_2)**0.5
       concluded_interval = (lower_bound,upper_bound)
   #平均數，t計算
-  elif stats == 'mu' and d == 't':
+  elif stats == '1' and d == '2' or 't':
     #單樣本
-    if sample == 'one':
+    if sample == '1':
       upper_bound = (x_bar_1) + (t) * (s_1) / (n_1)**0.5
       lower_bound = (x_bar_1) - (t) * (s_1) / (n_1)**0.5
       concluded_interval = (lower_bound,upper_bound)
     #雙樣本
-    elif sample == 'two':
+    elif sample == '2':
       upper_bound = (x_bar_1 - x_bar_2) + (t) * (s_p_2*(1/n_1 + 1/n_2))**0.5
       lower_bound = (x_bar_1 - x_bar_2) - (t) * (s_p_2*(1/n_1 + 1/n_2))**0.5
       concluded_interval = (lower_bound,upper_bound)
   #比例
-  elif stats == 'p':
+  elif stats == '2':
     #單樣本
-    if sample == 'one':
+    if sample == '1':
       upper_bound = (p_1) + (z) * (p_1*(1-p_1) / (n_1))**0.5
       lower_bound = (p_1) - (z) * (p_1*(1-p_1) / (n_1))**0.5
       concluded_interval  = (lower_bound,upper_bound)
     #雙樣本
-    elif sample == 'two':
+    elif sample == '2':
       upper_bound = (p_1 - p_2) + (z) * (p_1*(1-p_1)/n_1 + p_2*(1-p_2)/n_2)**0.5
       lower_bound = ((p_1) - (p_2)) - (z) * (p_1*(1-p_1)/n_1 + p_2*(1-p_2)/n_2)**0.5
       concluded_interval  = (lower_bound,upper_bound)
   #變異數
-  elif stats == 'var':
+  elif stats == '3':
     upper_bound = (n_1-1)*(s_1**2) / chi_upper
     lower_bound = (n_1-1)*(s_1**2) / chi_lower
     concluded_interval = (lower_bound,upper_bound)
 
-  return concluded_interval
+  return "信賴區間為:",concluded_interval
 
 #平均數計算
 def average():
@@ -193,26 +193,27 @@ def average():
   for i in number_list:
     total += float(i)
   average = total / len(number_list)
-  return average
+  return "平均值為:",average
 #變異數計算
 def variance():
-  target = input("請選擇是計算母體還是樣本變異數")
+  target = input("請選擇是計算母體(1)還是樣本變異數(2)")
   number_list = input("請輸入要計算的數據平均值(每個數據請用空格隔開):").split()
   total = 0
   for i in number_list:
     total += float(i)
   average = total / len(number_list)
   variance = 0
-  if target == '母體':
+  if target == '1':
     for i in number_list:
       variance += (float(i)-average)**2 / (len(number_list))
-  elif target == '樣本':
+  elif target == '2':
+
     for i in number_list:
       variance += (float(i)-average)**2 / (len(number_list) - 1)
-  return variance
+  return "變異數為:",variance
 #標準差計算
 def standard_deviation():
-  return variance()**0.5
+  return "標準差為:",variance()**0.5
 
 #主程式
 def main():
@@ -226,7 +227,7 @@ def main():
       break
     #執行假說檢定計算
     elif c == 2:
-      print(hypothesis())
+      return run_test()
     #執行平均數計算
     elif c == 3:
       return average()
