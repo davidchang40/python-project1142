@@ -1,128 +1,67 @@
-# -*- coding: utf-8 -*-
-
-
-def Z_ci(alpha):
-t_table = {
-}
-
-
-chi_square_table = {
-    25: {0.995: 10.520, 0.975: 13.120, 0.950: 14.611, 0.050: 37.652, 0.025: 40.646, 0.005: 46.928},
-    26: {0.995: 11.160, 0.975: 13.844, 0.950: 15.379, 0.050: 38.885, 0.025: 41.923, 0.005: 48.290},
-    27: {0.995: 11.808, 0.975: 14.573, 0.950: 16.151, 0.050: 40.113, 0.025: 43.195, 0.005: 49.645},
-    28: {0.995: 12.461, 0.975: 15.308, 0.950: 16.928, 0.050: 41.337, 0.025: 44.461, 0.005: 50.993},
-    29: {0.995: 13.121, 0.975: 16.047, 0.950: 17.708, 0.050: 42.557, 0.025: 45.722, 0.005: 52.336},
-}
-
-
-
-def confident_interval():
-    stat_type = input("請輸入您要計算的是母體平均數(mu)還是母體比例(p)還是變異數(var)：")
-    s     = float(input("請輸入母體標準差或樣本標準差(s)："))
-    n     = float(input("請輸入樣本數："))
-    alpha = float(input("請輸入信賴水準(alpha)："))
-
-    if stat_type == 'mu':
-        x_bar = float(input("請輸入母體(mu)或樣本平均數(x-bar)的值："))
-        d = input("請選擇要使用z計算還是t計算：")
-        if d == 'z':
-            z = float(Z_ci(float(alpha)))
-        elif d == 't':
-            t = float(T_ci(float(alpha), int(n - 1)))
-    elif stat_type == 'p':
-        p = float(input("請輸入母體比例(P)或樣本比例(p)的值："))
-        z = float(Z_ci(float(alpha)))
-    elif stat_type == 'var':
-        chi_upper = float(chi_ci_upper(float(alpha), int(n - 1)))
-        chi_lower = float(chi_ci_lower(float(alpha), int(n - 1)))
-
-    if stat_type == 'mu' and d == 'z':
-        upper_bound = x_bar + z * s / n ** 0.5
-        lower_bound = x_bar - z * s / n ** 0.5
-    elif stat_type == 'mu' and d == 't':
-        upper_bound = x_bar + t * s / n ** 0.5
-        lower_bound = x_bar - t * s / n ** 0.5
-    elif stat_type == 'p':
-        upper_bound = p + z * s / n ** 0.5
-        lower_bound = p - z * s / n ** 0.5
-    elif stat_type == 'var':
-        upper_bound = (n - 1) * s ** 2 / chi_upper
-        lower_bound = (n - 1) * s ** 2 / chi_lower
-
-    concluded_interval = (lower_bound, upper_bound)
-    return concluded_interval
-
-
-# ============================================================
-# 假設檢定區
-# ============================================================
 import numpy as np
 from scipy import stats
 
-# --- 條件變數 ---
-is_proportion       = None
-is_population_known = None
-is_paired           = None
-is_raw_data         = None
-n_samples           = None
-tail_type           = None
-alpha_ht            = None   # 與信賴區間的 alpha 分開命名，避免衝突
+# ============================================================
+# 全域變數區
+# ============================================================
 
-# --- 數據 ---
-raw_data            = []
-proportion          = []
+# --- 使用者條件（由 run_test 產出）---
+is_proportion       = None   # bool：True=比例型 / False=數值型
+is_population_known = None   # bool：True=母體已知(Z) / False=未知(T)
+is_paired           = None   # bool：True=配對 / False=獨立（n_samples==2 才有意義）
+is_raw_data         = None   # bool：True=輸入原始數據 / False=直接輸入統計量
+n_samples           = None   # int：1 或 2
+tail_type           = None   # str：'left' / 'right' / 'two'
+alpha               = None   # float：0.10 / 0.05 / 0.01
+
+# ---數據們 ---
+raw_data            = []     # list of list：[[樣本1數據], [樣本2數據]]
+proportion          = []     # list：樣本比例 p̂（雙比例時為 [p̂1, p̂2]）
 p0                  = 0
 
-# --- 統計量 ---
-mu                  = None
-x_bar               = None
-sigma               = None
-n_ht                = None   # 同上，避免與信賴區間的 n 衝突
-x_bar2              = None
-sigma2              = None
-df                  = None
+# --- 處理後統計量（由 calculate_stats 寫入，供 check_hypothesis 使用）---
+mu                  = None   # float：母體平均數 或 假設比例 p0
+x_bar               = None   # float：樣本平均數 或 樣本比例 p_hat
+sigma               = None   # float：標準差（母體已知用 σ，未知用 s）
+n                   = None   # int 或 list：樣本數（雙樣本時為 [n1, n2]）
 
+# 雙樣本專用
+x_bar2              = None   # float：第二組樣本平均數
+sigma2              = None   # float：第二組標準差
 
-def _reset_hypothesis_globals():
-    """每次執行假設檢定前重置全域變數，避免跨次污染"""
-    global is_proportion, is_population_known, is_paired, is_raw_data
-    global n_samples, tail_type, alpha_ht, raw_data, proportion, p0
-    global mu, x_bar, sigma, n_ht, x_bar2, sigma2, df
+#T-test專用
+df=None
 
-    is_proportion       = None
-    is_population_known = None
-    is_paired           = None
-    is_raw_data         = None
-    n_samples           = None
-    tail_type           = None
-    alpha_ht            = None
-    raw_data            = []
-    proportion          = []
-    p0                  = 0
-    mu                  = None
-    x_bar               = None
-    sigma               = None
-    n_ht                = None
-    x_bar2              = None
-    sigma2              = None
-    df                  = None
-
-
+# ============================================================
+# 啟動區
+# ============================================================
 def ask(prompt, valid_options):
+    # """
+    # 局域變數：
+    #     answer  (str)  ── 使用者輸入的原始字串
+    # """
     while True:
         answer = input(prompt)
         if answer in valid_options:
             return answer
         print(f"請輸入有效選項：{valid_options}")
 
-
 def run_test():
-    global is_proportion, is_population_known, is_paired
-    global is_raw_data, n_samples, tail_type, alpha_ht
-    global p0, raw_data, proportion, mu
-    global x_bar, x_bar2, sigma, sigma2, n_ht
+    # """
+    # 負責：問答流程、設定所有全域條件變數、呼叫計算函式、呼叫檢定函式
 
-    _reset_hypothesis_globals()
+    # 使用的全域變數（全部寫入）：
+    #     is_proportion, is_population_known, is_paired,
+    #     is_raw_data, n_samples, tail_type, alpha, raw_data, mu
+
+    # 局域變數：
+    #     answer      (str)  ── 每一題使用者的原始輸入
+    #     confidence  (str)  ── 使用者選的信心水準字串，轉換成 alpha
+    # """
+    global is_proportion, is_population_known, is_paired
+    global is_raw_data, n_samples, tail_type, alpha
+    global p0, raw_data, proportion, mu
+    global x_bar, x_bar2, sigma, sigma2, n
 
     is_proportion       = (ask("數值/比例？(1=數值 / 2=比例)：",         ["1","2"])    == "2")
     n_samples           = int(ask("樣本數？(1 / 2)：",                   ["1","2"]))
@@ -131,7 +70,7 @@ def run_test():
     is_population_known = not is_proportion and \
                           (ask("母體已知？(1=是 / 2=否)：",               ["1","2"])    == "1")
     is_raw_data         = (ask("輸入方式？(1=原始數據 / 2=統計量)：",     ["1","2"])    == "1")
-    alpha_ht            = {"90": 0.10, "95": 0.05, "99": 0.01}\
+    alpha               = {"90": 0.10, "95": 0.05, "99": 0.01}\
                           [ask("信心水準？(90/95/99)：",                  ["90","95","99"])]
     tail_type           = {"1": "left", "2": "right", "3": "two"}\
                           [ask("尾數？(1=左尾 / 2=右尾 / 3=雙尾)：",     ["1","2","3"])]
@@ -139,10 +78,10 @@ def run_test():
     if is_proportion:
         p0 = float(input("輸入假設比例 p₀："))
         if n_samples == 1:
-            n_ht = int(input("輸入樣本數 n："))
+            n = int(input("輸入樣本數 n："))
             proportion.append(float(input("輸入樣本比例 p̂：")))
         else:
-            n_ht = [int(input("輸入第1組樣本數 n₁：")), int(input("輸入第2組樣本數 n₂："))]
+            n = [int(input("輸入第1組樣本數 n₁：")), int(input("輸入第2組樣本數 n₂："))]
             for i in range(n_samples):
                 proportion.append(float(input(f"輸入第 {i+1} 組樣本比例 p̂：")))
     else:
@@ -154,171 +93,545 @@ def run_test():
             if n_samples == 1:
                 x_bar = float(input("輸入樣本平均數 x̄："))
                 sigma = float(input("輸入標準差 σ："))
-                n_ht  = int(input("輸入樣本數 n："))
+                n     = int(input("輸入樣本數 n："))
             else:
                 x_bar  = float(input("輸入第1組樣本平均數 x̄₁："))
                 x_bar2 = float(input("輸入第2組樣本平均數 x̄₂："))
                 sigma  = float(input("輸入第1組標準差 σ₁："))
                 sigma2 = float(input("輸入第2組標準差 σ₂："))
-                n_ht   = [int(input("輸入第1組樣本數 n₁：")),
-                          int(input("輸入第2組樣本數 n₂："))]
-
+                n      = [int(input("輸入第1組樣本數 n₁：")),
+                        int(input("輸入第2組樣本數 n₂："))]
     if is_proportion:
+        # --- 比例型（一律為 Z 檢定）---
         if n_samples == 1:
-            test_stat = calculate_stats_z_one()
+            test_stat = calculate_stats_z_one()     # 情境 1：單比例 Z 檢定
         else:
-            test_stat = calculate_stats_z_two()
+            test_stat = calculate_stats_z_two()     # 情境 2：雙比例 Z 檢定
+
     else:
+        # --- 數值型 ---
         if is_population_known:
+            # 母體變異數已知（使用 Z 檢定）
             if n_samples == 1:
-                test_stat = calculate_stats_z_one()
+                test_stat = calculate_stats_z_one() # 情境 3：單樣本 Z 檢定
             else:
-                test_stat = calculate_stats_z_two()
+                # 實務上母體已知的雙樣本多為獨立檢定
+                test_stat = calculate_stats_z_two() # 情境 4：雙樣本 Z 檢定
+
         else:
+            # 母體變異數未知（使用 T 檢定）
             if n_samples == 1:
-                test_stat = calculate_stats_t_one()
+                test_stat = calculate_stats_t_one() # 情境 5：單樣本 T 檢定
             else:
                 if is_paired:
-                    test_stat = calculate_stats_t_pair()
+                    test_stat = calculate_stats_t_pair() # 情境 6：配對 T 檢定
                 else:
-                    test_stat = calculate_stats_t_ind()
+                    test_stat = calculate_stats_t_ind()  # 情境 7：獨立雙樣本 T 檢定
 
+    # 統一將計算結果交給檢定區處理
     check_hypothesis(test_stat)
 
+    pass
 
-# ── 計算函式 ──
+
+# ============================================================
+# 計算區
+# ============================================================
 
 def calculate_stats_z_one():
-    global x_bar, sigma, n_ht
+    # """
+    # 單樣本 Z 檢定 / 單比例 Z 檢定 的數據處理 + 統計量計算
+
+    # 讀取的全域變數：
+    #     is_raw_data, is_proportion, raw_data, mu,
+    #     x_bar, sigma, n
+
+    # 寫入的全域變數：
+    #     x_bar, sigma, n
+
+    # 局域變數：
+    #     data        (list)   ── raw_data[0] 的捷徑
+    #     z_stat      (float)  ── 計算出的 Z 統計量
+
+    # 回傳：z_stat (float)
+    # """
+    global x_bar, sigma, n         # 宣告要修改的全域變數
+
     if is_proportion:
-        x_bar = proportion[0]
-        sigma = np.sqrt(p0 * (1 - p0) / n_ht)
+        x_bar = proportion[0]          # 取第一組 p̂
+        sigma = np.sqrt(p0 * (1 - p0) / n)  # 比例型 sigma 公式
+        # n 由使用者輸入時已存入全域，不用
     elif is_raw_data:
-        data  = raw_data[0]
-        n_ht  = len(data)
+        data = raw_data[0]          # 取第一組（單樣本只有一組）
+        n     = len(data)
         x_bar = np.mean(data)
-        sigma = np.std(data, ddof=0)
-    z_stat = (x_bar - mu) / (sigma / np.sqrt(n_ht))
-    return z_stat
+        sigma = np.std(data, ddof=0)  # ddof=0 代表母體標準差
+        # mu 由使用者另外輸入，不在這裡算
+    else:
+        # 使用者直接輸入，全域變數已經有值，不用動
+        pass
+
+    z_test=(x_bar-mu)/(sigma/np.sqrt(n))
+    return z_test
 
 
 def calculate_stats_z_two():
-    global x_bar, x_bar2, sigma, sigma2, n_ht
+    # """
+    # 雙樣本 Z 檢定 / 雙比例 Z 檢定 的數據處理 + 統計量計算
+
+    # 讀取的全域變數：
+    #     is_raw_data, is_proportion, raw_data, mu,
+    #     x_bar, x_bar2, sigma, sigma2, n
+
+    # 寫入的全域變數：
+    #     x_bar, x_bar2, sigma, sigma2, n
+
+    # 局域變數：
+    #     data1, data2  (list)   ── raw_data[0], raw_data[1] 的捷徑
+    #     se            (float)  ── 標準誤
+    #     z_stat        (float)  ── 計算出的 Z 統計量
+
+    # 回傳：z_stat (float)
+    # """
+    global x_bar, x_bar2, sigma, sigma2, n         # 宣告要修改的全域變數
+
     if is_proportion:
-        x_1  = proportion[0]
-        x_2  = proportion[1]
-        n1, n2 = n_ht[0], n_ht[1]
-        p_hat  = (x_1 * n1 + x_2 * n2) / (n1 + n2)
-        D      = np.sqrt(p_hat * (1 - p_hat) * (1/n1 + 1/n2))
-        return (x_1 - x_2 - mu) / D
+        x_1 = proportion[0]          # 取第一組 p̂
+        x_2= proportion[1]         # 取第二組 p̂
+        n1 = n[0]
+        n2 = n[1]
+        p_hat = (x_1 * n1 + x_2 * n2) / (n1 + n2)  # 合併比例
+        D = np.sqrt(p_hat * (1 - p_hat) * (1/n1 + 1/n2))  # 比例型標準誤
+        z_stat = (x_1 - x_2 - mu) / D
+        return z_stat
+
     elif is_raw_data:
-        data1, data2 = raw_data[0], raw_data[1]
-        n_ht   = [len(data1), len(data2)]
-        sigma  = np.std(data1, ddof=0)
-        sigma2 = np.std(data2, ddof=0)
-        x_bar  = np.mean(data1)
-        x_bar2 = np.mean(data2)
-    se = np.sqrt(sigma**2 / n_ht[0] + sigma2**2 / n_ht[1])
-    return (x_bar - x_bar2 - mu) / se
+        data1=raw_data[0]
+        data2=raw_data[1]
+        n = [len(data1), len(data2)]   # 統一寫入全域 n
+        sigma=np.std(data1,ddof=0)
+        sigma2=np.std(data2,ddof=0)
+        x_bar=np.mean(data1)
+        x_bar2=np.mean(data2)
+    else:
+        # 使用者直接輸入，全域變數已經有值，不用動
+        pass
+    se=np.sqrt(sigma**2/n[0]+sigma2**2/n[1])
+    z_stat=(x_bar-x_bar2-mu)/se
+    return z_stat
 
 
 def calculate_stats_t_one():
-    global x_bar, sigma, n_ht, df
+    # """
+    # 單樣本 T 檢定 的數據處理 + 統計量計算
+
+    # 讀取的全域變數：
+    #     is_raw_data, raw_data, mu,
+    #     x_bar, sigma, n
+
+    # 寫入的全域變數：
+    #     x_bar, sigma, n
+
+    # 局域變數：
+    #     data    (list)   ── raw_data[0] 的捷徑
+    #     t_stat  (float)  ── 計算出的 T 統計量
+
+    # 回傳：t_stat (float)
+    # """
+    global x_bar, sigma, n, df         # 宣告要修改的全域變數
+
     if is_raw_data:
-        data  = raw_data[0]
-        n_ht  = len(data)
+        data = raw_data[0]          # 取第一組（單樣本只有一組）
+        n     = len(data)
         x_bar = np.mean(data)
-        sigma = np.std(data, ddof=1)
-    df     = n_ht - 1
-    t_stat = (x_bar - mu) / (sigma / np.sqrt(n_ht))
-    return t_stat, df
+        sigma = np.std(data, ddof=1)  # ddof=1 代表樣本標準差
+        # mu 由使用者另外輸入，不在這裡算
+    else:
+        # 使用者直接輸入，全域變數已經有值，不用動
+        pass
+
+    df = n - 1  # 計算自由度
+    t_stat = (x_bar - mu) / (sigma / np.sqrt(n))   # 算出 t 統計量
+    return t_stat,df
+
 
 
 def calculate_stats_t_ind():
-    global x_bar, x_bar2, sigma, sigma2, n_ht, df
+    # """
+    # 獨立雙樣本 T 檢定 的數據處理 + 統計量計算
+
+    # 讀取的全域變數：
+    #     is_raw_data, raw_data,
+    #     x_bar, x_bar2, sigma, sigma2, n
+
+    # 寫入的全域變數：
+    #     x_bar, x_bar2, sigma, sigma2, n
+
+    # 局域變數：
+    #     data1, data2  (list)   ── raw_data[0], raw_data[1] 的捷徑
+    #     se            (float)  ── 標準誤
+    #     df            (int)    ── 自由度
+    #     t_stat        (float)  ── 計算出的 T 統計量
+
+    # 回傳：(t_stat, df)
+
+    # """
+    global n, sigma, sigma2, x_bar, x_bar2, df
+
     if is_raw_data:
-        data1, data2 = raw_data[0], raw_data[1]
-        n_ht   = [len(data1), len(data2)]
-        sigma  = np.std(data1, ddof=1)
-        sigma2 = np.std(data2, ddof=1)
-        x_bar  = np.mean(data1)
-        x_bar2 = np.mean(data2)
-    s2p    = ((n_ht[0]-1)*sigma**2 + (n_ht[1]-1)*sigma2**2) / (n_ht[0]+n_ht[1]-2)
-    se     = np.sqrt(s2p * (1/n_ht[0] + 1/n_ht[1]))
-    df     = n_ht[0] + n_ht[1] - 2
-    return (x_bar - x_bar2 - mu) / se, df
+        data1=raw_data[0]
+        data2=raw_data[1]
+        n = [len(data1), len(data2)]   # 統一寫入全域 n
+        sigma=np.std(data1,ddof=1)
+        sigma2=np.std(data2,ddof=1)
+        x_bar=np.mean(data1)
+        x_bar2=np.mean(data2)
+    else:
+        # 使用者直接輸入，全域變數已經有值，不用動
+        pass
+    s2p=((n[0]-1)*sigma**2+(n[1]-1)*sigma2**2)/(n[0]+n[1]-2)
+    se = np.sqrt(s2p * (1/n[0] + 1/n[1]))
+    T_stat=(x_bar-x_bar2-mu)/se
+    df = n[0] + n[1] - 2
+    return T_stat, df
 
 
 def calculate_stats_t_pair():
-    global x_bar, sigma, n_ht, df
+    # """
+    # 配對 T 檢定 的數據處理 + 統計量計算
+
+    # 讀取的全域變數：
+    #     is_raw_data, raw_data,
+    #     x_bar, sigma, n
+
+    # 寫入的全域變數：
+    #     x_bar, sigma, n
+
+    # 局域變數：
+    #     data1, data2  (list)   ── raw_data[0], raw_data[1] 的捷徑
+    #     diff          (list)   ── 每對差值 (data1[i] - data2[i])
+    #     t_stat        (float)  ── 計算出的 T 統計量
+
+    # 回傳：t_stat (float)
+    # """
+    global x_bar, sigma, n, df          # 宣告要修改的全域變數
+
+
     if is_raw_data:
-        data1, data2 = raw_data[0], raw_data[1]
-        n_ht  = len(data1)
-        diff  = [data1[i] - data2[i] for i in range(n_ht)]
+        data1=raw_data[0]
+        data2=raw_data[1]
+        n = len(data1)  # 配對樣本數
+        diff = [data1[i] - data2[i] for i in range(n)]
         x_bar = np.mean(diff)
-        sigma = np.std(diff, ddof=1)
-    df     = n_ht - 1
-    t_stat = (x_bar - mu) / (sigma / np.sqrt(n_ht))
+        sigma = np.std(diff, ddof=1)  # 差值的樣本標準差
+
+    else:
+        # 使用者直接輸入，全域變數已經有值，不用動
+        pass
+    t_stat = (x_bar - mu) / (sigma / np.sqrt(n))
+    df = n - 1  # 配對 T 檢定的自由度
     return t_stat, df
 
 
-# ── 檢定函式 ──
+
+
+# ============================================================
+# 檢定區
+# ============================================================
 
 def get_critical_value():
     if is_proportion or is_population_known:
+        # Z 檢定
         if tail_type == "left":
-            return stats.norm.ppf(alpha_ht)
+            return stats.norm.ppf(alpha)
         elif tail_type == "right":
-            return stats.norm.ppf(1 - alpha_ht)
-        else:
-            return stats.norm.ppf(1 - alpha_ht / 2)
+            return stats.norm.ppf(1 - alpha)
+        else:  # two-tailed
+            return stats.norm.ppf(1 - alpha / 2)
     else:
+        # T 檢定
         if tail_type == "left":
-            return stats.t.ppf(alpha_ht, df)
+            return stats.t.ppf(alpha, df)
         elif tail_type == "right":
-            return stats.t.ppf(1 - alpha_ht, df)
-        else:
-            return stats.t.ppf(1 - alpha_ht / 2, df)
-
+            return stats.t.ppf(1 - alpha, df)
+        else:  # two-tailed
+            return stats.t.ppf(1 - alpha / 2, df)
 
 def check_hypothesis(test_stat):
-    stat           = test_stat[0] if isinstance(test_stat, tuple) else test_stat
-    critical_value = get_critical_value()
+    # """
+    # 負責：根據條件查臨界值、與統計量比大小、輸出結論
 
+    # 參數：
+    #     test_stat   (float 或 tuple) ── 來自計算函式的統計量
+    #                                     T獨立雙樣本時為 (t_stat, df)
+
+    # 讀取的全域變數：
+    #     is_proportion, is_population_known, is_paired,
+    #     n_samples, tail_type, alpha
+
+    # 局域變數：
+    #     critical_value  (float)  ── 查表得到的臨界值
+    #     df              (int)    ── 自由度（T檢定用）
+    #     conclusion      (str)    ── 最終輸出結論文字
+
+    # 回傳：無（直接 print 結論）
+    # """
+    critical_value = 0.0  # 初始化臨界值
+    conclusion = ""  # 初始化結論文字
+    stat = test_stat[0] if isinstance(test_stat, tuple) else test_stat  # ← 補這行
+
+    critical_value = get_critical_value()
     if tail_type == "left":
-        conclusion = "拒絕 H₀" if stat < critical_value else "不拒絕 H₀"
+            conclusion = "拒絕 H₀" if test_stat < critical_value else "不拒絕 H₀"
     elif tail_type == "right":
-        conclusion = "拒絕 H₀" if stat > critical_value else "不拒絕 H₀"
-    else:
-        conclusion = "拒絕 H₀" if abs(stat) > abs(critical_value) else "不拒絕 H₀"
+            conclusion = "拒絕 H₀" if test_stat > critical_value else "不拒絕 H₀"
+    else:  # two-tailed
+            conclusion = "拒絕 H₀" if abs(test_stat) > abs(critical_value) else "不拒絕 H₀"
 
     print(f"統計量：{stat:.4f}")
     print(f"臨界值：{critical_value:.4f}")
+    print(raw_data)
     print(conclusion)
 
 
-# ============================================================
-# 主選單
-# ============================================================
+#定義並回覆信賴水準下的對應z值
+def Z_ci(alpha):
+  if alpha == 0.1:
+    return 1.645
+  if alpha == 0.05:
+    return 1.96
+  if alpha == 0.01:
+    return 2.575
 
+#T表，用來儲存對應t值
+t_table = {
+    1: {0.05: 6.314, 0.025: 12.706, 0.005: 63.657},
+    2: {0.05: 2.920, 0.025: 4.303, 0.005: 9.925},
+    3: {0.05: 2.353, 0.025: 3.182, 0.005: 5.841},
+    4: {0.05: 2.132, 0.025: 2.776, 0.005: 4.604},
+    5: {0.05: 2.015, 0.025: 2.571, 0.005: 4.032},
+    6: {0.05: 1.943, 0.025: 2.447, 0.005: 3.707},
+    7: {0.05: 1.895, 0.025: 2.365, 0.005: 2.998},
+    8: {0.05: 1.860, 0.025: 2.306, 0.005: 2.896},
+    9: {0.05: 1.833, 0.025: 2.262, 0.005: 2.821},
+    10: {0.05: 1.812, 0.025: 2.228, 0.005: 2.764},
+    11: {0.05: 1.796, 0.025: 2.201, 0.005: 2.718},
+    12: {0.05: 1.782, 0.025: 2.179, 0.005: 2.681},
+    13: {0.05: 1.771, 0.025: 2.160, 0.005: 2.650},
+    14: {0.05: 1.761, 0.025: 2.145, 0.005: 2.624},
+    15: {0.05: 1.753, 0.025: 2.131, 0.005: 2.602},
+    16: {0.05: 1.746, 0.025: 2.120, 0.005: 2.583},
+    17: {0.05: 1.740, 0.025: 2.110, 0.005: 2.567},
+    18: {0.05: 1.734, 0.025: 2.101, 0.005: 2.552},
+    19: {0.05: 1.729, 0.025: 2.093, 0.005: 2.539},
+    20: {0.05: 1.725, 0.025: 2.086, 0.005: 2.528},
+    21: {0.05: 1.721, 0.025: 2.080, 0.005: 2.518},
+    22: {0.05: 1.717, 0.025: 2.074, 0.005: 2.508},
+    23: {0.05: 1.714, 0.025: 2.069, 0.005: 2.500},
+    24: {0.05: 1.711, 0.025: 2.064, 0.005: 2.492},
+    25: {0.05: 1.708, 0.025: 2.060, 0.005: 2.485},
+    26: {0.05: 1.706, 0.025: 2.056, 0.005: 2.479},
+    27: {0.05: 1.703, 0.025: 2.052, 0.005: 2.473},
+    28: {0.05: 1.701, 0.025: 2.048, 0.005: 2.467},
+    29: {0.05: 1.699, 0.025: 2.045, 0.005: 2.462},
+    30: {0.05: 1.697, 0.025: 2.042, 0.005: 2.457}
+}
+
+#用來查詢並回復T表內的T值
+def T_ci(alpha,df):
+  if df in t_table and (alpha/2) in t_table[df]:
+    return t_table[df][alpha/2]
+
+#chi_square凱方表，用來儲存chi-square值
+chi_square_table = {
+    1: {0.995: 0.000, 0.975: 0.001, 0.950: 0.004, 0.050: 3.841, 0.025: 5.024, 0.005: 7.879},
+    2: {0.995: 0.010, 0.975: 0.051, 0.950: 0.103, 0.050: 5.991, 0.025: 7.378, 0.005: 10.597},
+    3: {0.995: 0.072, 0.975: 0.216, 0.950: 0.352, 0.050: 7.815, 0.025: 9.348, 0.005: 12.838},
+    4: {0.995: 0.207, 0.975: 0.484, 0.950: 0.711, 0.050: 9.488, 0.025: 11.143, 0.005: 14.860},
+    5: {0.995: 0.412, 0.975: 0.831, 0.950: 1.145, 0.050: 11.070, 0.025: 12.833, 0.005: 16.750},
+    6: {0.995: 0.676, 0.975: 1.237, 0.950: 1.635, 0.050: 12.592, 0.025: 14.449, 0.005: 18.548},
+    7: {0.995: 0.989, 0.975: 1.690, 0.950: 2.167, 0.050: 14.067, 0.025: 16.013, 0.005: 20.278},
+    8: {0.995: 1.344, 0.975: 2.180, 0.950: 2.733, 0.050: 15.507, 0.025: 17.535, 0.005: 21.955},
+    9: {0.995: 1.735, 0.975: 2.700, 0.950: 3.325, 0.050: 16.919, 0.025: 19.023, 0.005: 23.589},
+    10: {0.995: 2.156, 0.975: 3.247, 0.950: 3.940, 0.050: 18.307, 0.025: 20.483, 0.005: 25.188},
+    11: {0.995: 2.603, 0.975: 3.816, 0.950: 4.575, 0.050: 19.675, 0.025: 21.920, 0.005: 26.757},
+    12: {0.995: 3.074, 0.975: 4.404, 0.950: 5.226, 0.050: 21.026, 0.025: 23.337, 0.005: 28.300},
+    13: {0.995: 3.565, 0.975: 5.009, 0.950: 5.892, 0.050: 22.362, 0.025: 24.736, 0.005: 29.819},
+    14: {0.995: 4.075, 0.975: 5.629, 0.950: 6.571, 0.050: 23.685, 0.025: 26.119, 0.005: 31.319},
+    15: {0.995: 4.601, 0.975: 6.262, 0.950: 7.261, 0.050: 24.996, 0.025: 27.488, 0.005: 32.801},
+    16: {0.995: 5.142, 0.975: 6.908, 0.950: 7.962, 0.050: 26.296, 0.025: 28.845, 0.005: 34.267},
+    17: {0.995: 5.697, 0.975: 7.564, 0.950: 8.672, 0.050: 27.587, 0.025: 30.191, 0.005: 35.718},
+    18: {0.995: 6.265, 0.975: 8.231, 0.950: 9.390, 0.050: 28.869, 0.025: 31.526, 0.005: 37.156},
+    19: {0.995: 6.844, 0.975: 8.907, 0.950: 10.117, 0.050: 30.144, 0.025: 32.852, 0.005: 38.582},
+    20: {0.995: 7.434, 0.975: 9.591, 0.950: 10.851, 0.050: 31.410, 0.025: 34.170, 0.005: 39.997},
+    21: {0.995: 8.034, 0.975: 10.283, 0.950: 11.591, 0.050: 32.671, 0.025: 35.479, 0.005: 41.401},
+    22: {0.995: 8.643, 0.975: 10.982, 0.950: 12.338, 0.050: 33.924, 0.025: 36.781, 0.005: 42.796},
+    23: {0.995: 9.260, 0.975: 11.689, 0.950: 13.091, 0.050: 35.172, 0.025: 38.076, 0.005: 44.181},
+    24: {0.995: 9.886, 0.975: 12.401, 0.950: 13.848, 0.050: 36.415, 0.025: 39.364, 0.005: 45.559},
+    25: {0.995: 10.520, 0.975: 13.120, 0.950: 14.611, 0.050: 37.652, 0.025: 40.646, 0.005: 46.928},
+    26: {0.995: 11.160, 0.975: 13.844, 0.950: 15.379, 0.050: 38.885, 0.025: 41.923, 0.005: 48.290},
+    27: {0.995: 11.808, 0.975: 14.573, 0.950: 16.151, 0.050: 40.113, 0.025: 43.195, 0.005: 49.645},
+    28: {0.995: 12.461, 0.975: 15.308, 0.950: 16.928, 0.050: 41.337, 0.025: 44.461, 0.005: 50.993},
+    29: {0.995: 13.121, 0.975: 16.047, 0.950: 17.708, 0.050: 42.557, 0.025: 45.722, 0.005: 52.336},
+    30: {0.995: 13.787, 0.975: 16.791, 0.950: 18.493, 0.050: 43.773, 0.025: 46.979, 0.005: 53.672}
+}
+
+#用來查詢並回覆chi-square表內的值(上區間)
+def chi_ci_upper(alpha,df):
+  if df in chi_square_table and alpha/2 in chi_square_table[df]:
+    return chi_square_table[df][1-alpha/2]
+
+#用來查詢並回覆chi-square表內的值(下區間)
+def chi_ci_lower(alpha,df):
+  if df in chi_square_table and alpha/2 in chi_square_table[df]:
+    return chi_square_table[df][alpha/2]
+
+#定義雙樣本母體平均數t檢定中的sp平方參數
+def s_p(n_1,n_2,s_1,s_2):
+  return ((n_1-1)*(s_1)**2 + (n_2-1)*(s_2)**2) / (n_1+n_2-2)
+
+#信賴區間計算函式
+def confident_interval():
+  #基礎數據輸入
+  sample = input("請選擇您要進行單樣本(1)還是雙樣本(2)的計算")
+  stats = input("請輸入您要計算的是母體平均數(1)還是母體比例(2)還是變異數(3):")
+  s_1 = float(input("請輸入第一母體標準差或樣本標準差:"))
+  n_1 = float(input("請輸入第一樣本數(如要進行t計算請輸入0到30之內):"))
+  if sample == '2':
+    s_2 = float(input("請輸入第二母體標準差或樣本標準差:"))
+    n_2 = float(input("請輸入第二樣本數(如要進行t計算請輸入0到30之內):"))
+  alpha = float(input("請輸入顯著水準(0.1/0.05/0.01):"))
+
+  #根據使用者輸入項目取得對應數據
+  #平均數(mu)
+  if stats == '1':
+    x_bar_1 = float(input("請輸入第一母體(mu)或樣本平均數(x-bar)的值:"))
+    if sample == '2':
+      x_bar_2 = float(input("請輸入第二母體(mu)或樣本平均數(x-bar)的值:"))
+    d = input("請選擇要使用z計算(1)還是t計算(2):")
+    if d == '1' or 'z':
+      z = Z_ci(alpha)
+    elif d == '2' or 't':
+      if sample == '1':
+        t = T_ci((alpha),int((n_1)-1))
+      if sample == '2':
+        t = (T_ci((alpha),int((n_1+n_2-2))))
+        s_p_2 = s_p(n_1,n_2,s_1,s_2)
+  #比例(p)
+  elif stats == '2':
+    p_1 = float(input("請輸入第一母體比例(P)或樣本比例(p)的值:"))
+    if sample == '2':
+      p_2 = float(input("請輸入第二母體比例(P)或樣本比例(p)的值:"))
+    z = Z_ci(alpha)
+  #變異數(variance)
+  elif stats == '3':
+    chi_upper = chi_ci_upper(alpha,int((n_1)-1))
+    chi_lower = chi_ci_lower(alpha,int((n_1)-1))
+
+  #計算部分
+  #平均數，z計算
+  if stats == '1' and d == '1' or 'z':
+    #單樣本
+    if sample == '1':
+      upper_bound = (x_bar_1) + (z) * (s_1) / (n_1)**0.5
+      lower_bound = (x_bar_1) - (z) * (s_1) / (n_1)**0.5
+      concluded_interval = (lower_bound,upper_bound)
+    #雙樣本
+    elif sample == '2':
+      upper_bound = (x_bar_1 - x_bar_2) + (z) * ((s_1)**2/n_1 + (s_2)**2/n_2)**0.5
+      lower_bound = (x_bar_1 - x_bar_2) - (z) * ((s_1)**2/n_1 + (s_2)**2/n_2)**0.5
+      concluded_interval = (lower_bound,upper_bound)
+  #平均數，t計算
+  elif stats == '1' and d == '2' or 't':
+    #單樣本
+    if sample == '1':
+      upper_bound = (x_bar_1) + (t) * (s_1) / (n_1)**0.5
+      lower_bound = (x_bar_1) - (t) * (s_1) / (n_1)**0.5
+      concluded_interval = (lower_bound,upper_bound)
+    #雙樣本
+    elif sample == '2':
+      upper_bound = (x_bar_1 - x_bar_2) + (t) * (s_p_2*(1/n_1 + 1/n_2))**0.5
+      lower_bound = (x_bar_1 - x_bar_2) - (t) * (s_p_2*(1/n_1 + 1/n_2))**0.5
+      concluded_interval = (lower_bound,upper_bound)
+  #比例
+  elif stats == '2':
+    #單樣本
+    if sample == '1':
+      upper_bound = (p_1) + (z) * (p_1*(1-p_1) / (n_1))**0.5
+      lower_bound = (p_1) - (z) * (p_1*(1-p_1) / (n_1))**0.5
+      concluded_interval  = (lower_bound,upper_bound)
+    #雙樣本
+    elif sample == '2':
+      upper_bound = (p_1 - p_2) + (z) * (p_1*(1-p_1)/n_1 + p_2*(1-p_2)/n_2)**0.5
+      lower_bound = ((p_1) - (p_2)) - (z) * (p_1*(1-p_1)/n_1 + p_2*(1-p_2)/n_2)**0.5
+      concluded_interval  = (lower_bound,upper_bound)
+  #變異數
+  elif stats == '3':
+    upper_bound = (n_1-1)*(s_1**2) / chi_upper
+    lower_bound = (n_1-1)*(s_1**2) / chi_lower
+    concluded_interval = (lower_bound,upper_bound)
+
+  return "信賴區間為:",concluded_interval
+
+#平均數計算
+def average():
+  number_list = input("請輸入要計算的數據平均值(每個數據請用空格隔開):").split()
+  total = 0
+  for i in number_list:
+    total += float(i)
+  average = total / len(number_list)
+  return "平均值為:",average
+#變異數計算
+def variance():
+  target = input("請選擇是計算母體(1)還是樣本變異數(2)")
+  number_list = input("請輸入要計算的數據平均值(每個數據請用空格隔開):").split()
+  total = 0
+  for i in number_list:
+    total += float(i)
+  average = total / len(number_list)
+  variance = 0
+  if target == '1':
+    for i in number_list:
+      variance += (float(i)-average)**2 / (len(number_list))
+  elif target == '2':
+
+    for i in number_list:
+      variance += (float(i)-average)**2 / (len(number_list) - 1)
+  return "變異數為:",variance
+#標準差計算
+def standard_deviation():
+  return "標準差為:",variance()**0.5
+
+#主程式
 def main():
-    while True:
-        print("\n======= 歡迎使用統計計算機 =======")
-        print("1. 信賴區間")
-        print("2. 假設檢定")
-        print("3. 離開")
-        c = input("請輸入選項：").strip()
+  while True:
+    print("=======歡迎使用統計計算機=======")
+    print('如果要進行信賴區間計算，請輸入1，假說檢定請輸入2，平均數請輸入3，變異數請輸入4，標準差請輸入5，離開程式請輸入6。')
+    c = int(input())
+    #執行信賴區間計算
+    if c == 1:
+      return confident_interval()
+      break
+    #執行假說檢定計算
+    elif c == 2:
+      return run_test()
+    #執行平均數計算
+    elif c == 3:
+      return average()
+      break
+    #執行變異數計算
+    elif c == 4:
+      return variance()
+      break
+    #執行標準差計算
+    elif c == 5:
+      return standard_deviation()
+      break
+    #結束程式
+    elif c == 6:
+      print("感謝使用")
+    else:
+      print("錯誤，請再試一次")
+      continue
 
-        if c == "1":
-            result = confident_interval()
-            print(f"\n信賴區間：{result}")
-        elif c == "2":
-            run_test()
-        elif c == "3":
-            print("感謝使用！")
-            break
-        else:
-            print("請輸入 1 / 2 / 3")
-
-if __name__ == "__main__":
-    main()
+main()
