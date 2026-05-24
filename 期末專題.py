@@ -148,22 +148,7 @@ def run_test():
 # ============================================================
 
 def calculate_stats_z_one():
-    # """
-    # 單樣本 Z 檢定 / 單比例 Z 檢定 的數據處理 + 統計量計算
 
-    # 讀取的全域變數：
-    #     is_raw_data, is_proportion, raw_data, mu,
-    #     x_bar, sigma, n
-
-    # 寫入的全域變數：
-    #     x_bar, sigma, n
-
-    # 局域變數：
-    #     data        (list)   ── raw_data[0] 的捷徑
-    #     z_stat      (float)  ── 計算出的 Z 統計量
-
-    # 回傳：z_stat (float)
-    # """
     global x_bar, sigma, n         # 宣告要修改的全域變數
 
     if is_proportion:
@@ -185,23 +170,7 @@ def calculate_stats_z_one():
 
 
 def calculate_stats_z_two():
-    # """
-    # 雙樣本 Z 檢定 / 雙比例 Z 檢定 的數據處理 + 統計量計算
-
-    # 讀取的全域變數：
-    #     is_raw_data, is_proportion, raw_data, mu,
-    #     x_bar, x_bar2, sigma, sigma2, n
-
-    # 寫入的全域變數：
-    #     x_bar, x_bar2, sigma, sigma2, n
-
-    # 局域變數：
-    #     data1, data2  (list)   ── raw_data[0], raw_data[1] 的捷徑
-    #     se            (float)  ── 標準誤
-    #     z_stat        (float)  ── 計算出的 Z 統計量
-
-    # 回傳：z_stat (float)
-    # """
+    
     global x_bar, x_bar2, sigma, sigma2, n         # 宣告要修改的全域變數
 
     if is_proportion:
@@ -231,22 +200,7 @@ def calculate_stats_z_two():
 
 
 def calculate_stats_t_one():
-    # """
-    # 單樣本 T 檢定 的數據處理 + 統計量計算
 
-    # 讀取的全域變數：
-    #     is_raw_data, raw_data, mu,
-    #     x_bar, sigma, n
-
-    # 寫入的全域變數：
-    #     x_bar, sigma, n
-
-    # 局域變數：
-    #     data    (list)   ── raw_data[0] 的捷徑
-    #     t_stat  (float)  ── 計算出的 T 統計量
-
-    # 回傳：t_stat (float)
-    # """
     global x_bar, sigma, n, df         # 宣告要修改的全域變數
 
     if is_raw_data:
@@ -266,25 +220,7 @@ def calculate_stats_t_one():
 
 
 def calculate_stats_t_ind():
-    # """
-    # 獨立雙樣本 T 檢定 的數據處理 + 統計量計算
-
-    # 讀取的全域變數：
-    #     is_raw_data, raw_data,
-    #     x_bar, x_bar2, sigma, sigma2, n
-
-    # 寫入的全域變數：
-    #     x_bar, x_bar2, sigma, sigma2, n
-
-    # 局域變數：
-    #     data1, data2  (list)   ── raw_data[0], raw_data[1] 的捷徑
-    #     se            (float)  ── 標準誤
-    #     df            (int)    ── 自由度
-    #     t_stat        (float)  ── 計算出的 T 統計量
-
-    # 回傳：(t_stat, df)
-
-    # """
+    
     global n, sigma, sigma2, x_bar, x_bar2, df
 
     if is_raw_data:
@@ -306,23 +242,7 @@ def calculate_stats_t_ind():
 
 
 def calculate_stats_t_pair():
-    # """
-    # 配對 T 檢定 的數據處理 + 統計量計算
-
-    # 讀取的全域變數：
-    #     is_raw_data, raw_data,
-    #     x_bar, sigma, n
-
-    # 寫入的全域變數：
-    #     x_bar, sigma, n
-
-    # 局域變數：
-    #     data1, data2  (list)   ── raw_data[0], raw_data[1] 的捷徑
-    #     diff          (list)   ── 每對差值 (data1[i] - data2[i])
-    #     t_stat        (float)  ── 計算出的 T 統計量
-
-    # 回傳：t_stat (float)
-    # """
+   
     global x_bar, sigma, n, df          # 宣告要修改的全域變數
 
 
@@ -367,24 +287,7 @@ def get_critical_value():
             return stats.t.ppf(1 - alpha / 2, df)
 
 def check_hypothesis(test_stat):
-    # """
-    # 負責：根據條件查臨界值、與統計量比大小、輸出結論
-
-    # 參數：
-    #     test_stat   (float 或 tuple) ── 來自計算函式的統計量
-    #                                     T獨立雙樣本時為 (t_stat, df)
-
-    # 讀取的全域變數：
-    #     is_proportion, is_population_known, is_paired,
-    #     n_samples, tail_type, alpha
-
-    # 局域變數：
-    #     critical_value  (float)  ── 查表得到的臨界值
-    #     df              (int)    ── 自由度（T檢定用）
-    #     conclusion      (str)    ── 最終輸出結論文字
-
-    # 回傳：無（直接 print 結論）
-    # """
+    
     critical_value = 0.0  # 初始化臨界值
     conclusion = ""  # 初始化結論文字
     stat = test_stat[0] if isinstance(test_stat, tuple) else test_stat  # ← 補這行
